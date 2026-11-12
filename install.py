@@ -5,6 +5,8 @@
     python install.py --dest DIR           # copy to another skills folder
     python install.py --update             # git pull, then copy again
     python install.py --hooks              # also add the secret guard hook to ~/.claude/settings.json
+    python install.py --dest PROJECT/.claude/skills --hooks --settings PROJECT/.claude/settings.json
+                                           # install for one project folder only
     python install.py --check              # show what is installed; change nothing
 
 It never touches your trading state (the trader/ folder where you work) or
@@ -72,23 +74,23 @@ def copy(dest):
     return hooks
 
 
-def add_hook(hooks_dir):
+def add_hook(hooks_dir, settings=SETTINGS):
     guard = os.path.join(hooks_dir, "guard.py").replace("\\", "/")
     py = "python" if os.name == "nt" else "python3"
     entry = {"matcher": "Read|Write|Edit|MultiEdit|NotebookEdit|Grep|Glob|Bash|PowerShell",
              "hooks": [{"type": "command", "command": '%s "%s"' % (py, guard), "timeout": 10}]}
     cfg = {}
-    if os.path.exists(SETTINGS):
-        with open(SETTINGS, encoding="utf-8") as fh:
+    if os.path.exists(settings):
+        with open(settings, encoding="utf-8") as fh:
             cfg = json.load(fh)
-        shutil.copy(SETTINGS, SETTINGS + ".bak")
+        shutil.copy(settings, settings + ".bak")
     pre = cfg.setdefault("hooks", {}).setdefault("PreToolUse", [])
     pre[:] = [e for e in pre if "guard.py" not in json.dumps(e) or "trader-skill" not in json.dumps(e)]
     pre.append(entry)
-    os.makedirs(os.path.dirname(SETTINGS), exist_ok=True)
-    with open(SETTINGS, "w", encoding="utf-8") as fh:
+    os.makedirs(os.path.dirname(settings), exist_ok=True)
+    with open(settings, "w", encoding="utf-8") as fh:
         json.dump(cfg, fh, indent=2)
-    print("Added the secret guard hook to %s (backup: settings.json.bak)." % SETTINGS)
+    print("Added the secret guard hook to %s (backup: settings.json.bak)." % settings)
 
 
 def check(dest):
@@ -107,6 +109,7 @@ def main(argv=None):
     ap.add_argument("--update", action="store_true")
     ap.add_argument("--hooks", action="store_true")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--settings", default=SETTINGS, help="settings.json that gets the hook (with --hooks)")
     a = ap.parse_args(argv)
     if a.check:
         check(a.dest)
@@ -115,7 +118,7 @@ def main(argv=None):
         return 1
     hooks = copy(a.dest)
     if a.hooks:
-        add_hook(hooks)
+        add_hook(hooks, a.settings)
     else:
         print("Secret guard: install as a plugin (it loads hooks/hooks.json), or run again with --hooks.")
     print("Next: create ~/.trader/angel.env yourself (see trader-broker/SKILL.md). Never paste keys in a chat.")

@@ -36,6 +36,8 @@ python install.py --hooks    # optional: adds the secret guard hook to ~/.claude
 ```
 
 Use `python install.py --dest <folder>` for an agent that reads skills from another folder.
+To install for one project folder only, run this command:
+`python install.py --dest <project>/.claude/skills --hooks --settings <project>/.claude/settings.json`.
 Python 3.8 or newer is the only requirement. The scripts use the standard library only.
 
 ## Update
