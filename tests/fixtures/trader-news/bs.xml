@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:bs="https://www.business-standard.com/rss/">
+  <channel>
+    <title><![CDATA[Share Market Today]]></title>
+    <link>https://www.business-standard.com/markets</link>
+    <description><![CDATA[Stay updated with the latest stock market news and live updates. Get real-time insights on Sensex Today, Nifty Live, stock market today, IPO news and more on Business Standard.]]></description>
+    <copyright>Business Standard</copyright>
+    <lastBuildDate>Wed, 11 Nov 2026 19:29:05 +0530</lastBuildDate>
+    <language>en-us</language>
+    <image>
+      <title>Markets</title>
+      <url>https://www.business-standard.com/markets</url>
+      <link>https://www.business-standard.com/markets</link>
+    </image>
+    <atom:link href="https://www.business-standard.com/rss/markets-106.rss" rel="self" type="application/rss+xml"/>
+    <item>
+      <title><![CDATA[Equity MF inflows fall 14% in October as mid-, smallcap investments cool]]></title>
+      <link>https://www.business-standard.com/markets/news/equity-mf-inflows-fall-14-in-october-as-mid-smallcap-investments-cool-126111101371_1.html</link>
+      <guid>https://www.business-standard.com/markets/news/equity-mf-inflows-fall-14-in-october-as-mid-smallcap-investments-cool-126111101371_1.html</guid>
+      <description><![CDATA[Net equity inflows fall to ₹32,994 crore as midcap and smallcap investments moderate; SIP contributions dip marginally to ₹32,160 crore amid profit booking and market volatility]]></description>
+      <media:content url="https://bsmedia.business-standard.com/_media/bs/img/article/default/1261111/full-126111101371.jpg">
+        <media:title>mutual funds</media:title>
+      </media:content>
+      <pubDate>Wed, 11 Nov 2026 19:28:05 +0530</pubDate>
+      <bs:lastModification>Wed, 11 Nov 2026 19:29:05 +0530</bs:lastModification>
+      <bs:keywords>Equity mutual funds, mutual fund inflows, October MF inflows, Amfi data, SIP inflows, smallcap funds, midcap funds, large and midcap funds, mutual fund investments, equity fund redemptions, profit booking, SBI Mutual Fund, Morningstar India, Mirae Asset, assets under management, mutual fund industry</bs:keywords>
+      <dc:publisher>Business Standard</dc:publisher>
+      <category>Markets</category>
+      <category>News</category>
+      <bs:section>Markets</bs:section>
+      <bs:subsection>News</bs:subsection>
+      <bs:source>Business Standard</bs:source>
+      <bs:contentType>News</bs:contentType>
+    </item>
+<item>
+      <title><![CDATA[NRIs can complete investment KYC from abroad starting Dec 3: What changes?]]></title>
+      <link>https://www.business-standard.com/markets/news/nris-can-complete-investment-kyc-from-abroad-starting-dec-3-what-changes-126111101128_1.html</link>
+      <guid>https://www.business-standard.com/markets/news/nris-can-complete-investment-kyc-from-abroad-starting-dec-3-what-changes-126111101128_1.html</guid>
+      <description><![CDATA[Weeks of paperwork could give way to a faster digital process as Sebi removes the requirement for overseas investors to be physically present in India for digital KYC]]></description>
+      <media:content url="https://bsmedia.business-standard.com/_media/bs/img/article/default/1261111/full-126111101128.jpg">
+        <media:title>video calling, video KYC</media:title>
+      </media:content>
+      <pubDate>Wed, 11 Nov 2026 17:38:09 +0530</pubDate>
+      <bs:lastModification>Wed, 11 Nov 2026 17:39:09 +0530</bs:lastModification>
+      <bs:keywords>NRI, Sebi, KYC, digital KYC, FATF, NRI investment, Zerodha, Overseas Citizens of India</bs:keywords>
+      <dc:publisher>Business Standard</dc:publisher>
+      <category>Markets</category>
+      <category>News</category>
+      <bs:section>Markets</bs:section>
+      <bs:subsection>News</bs:subsection>
+      <bs:source>Business Standard</bs:source>
+      <bs:contentType>News</bs:contentType>
+    </item>
+<item>
+      <title><![CDATA[Rentomojo climbs 10% to 52-wk high; what's behind gains as Q2 PAT dips 63%?]]></title>
+      <link>https://www.business-standard.com/markets/news/rentomojo-climbs-10-to-52-wk-high-what-s-behind-gains-as-q2-pat-dips-63-126111100703_1.html</link>
+      <guid>https://www.business-standard.com/markets/news/rentomojo-climbs-10-to-52-wk-high-what-s-behind-gains-as-q2-pat-dips-63-126111100703_1.html</guid>
+      <description><![CDATA[Rentomojo, which made its Dalal Street debut in September this year, reported a 63 per cent Y-o-Y decline in consolidated net profit to ₹18.1 crore for the September quarter (Q2FY27)]]></description>
+      <media:content url="https://bsmedia.business-standard.com/_media/bs/img/article/default/1261111/full-126111100703.jpg">
+        <media:title>Rentomojo share price</media:title>
+      </media:content>
+      <pubDate>Wed, 11 Nov 2026 14:52:26 +0530</pubDate>
+      <bs:lastModification>Wed, 11 Nov 2026 15:01:26 +0530</bs:lastModification>
+      <bs:keywords>markets, Rentomojo, Rentomojo share, Rentomojo share price, Rentomojo share price today, Rentomojo q2 results, Rentomojo q2 profit, Rentomojo q2 revenue</bs:keywords>
+      <dc:publisher>Business Standard</dc:publisher>
+      <category>Markets</category>
+      <category>News</category>
+      <bs:section>Markets</bs:section>
+      <bs:subsection>News</bs:subsection>
+      <bs:source>Business Standard</bs:source>
+      <bs:contentType>News</bs:contentType>
+    </item>
+  </channel>
+</rss>

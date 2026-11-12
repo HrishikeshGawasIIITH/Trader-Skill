@@ -1,0 +1,21 @@
+{
+ "chart": {
+  "result": [
+   {
+    "meta": {
+     "currency": "INR",
+     "symbol": "RELIANCE.NS",
+     "exchangeName": "NSI",
+     "regularMarketTime": 1794391194,
+     "gmtoffset": 19800,
+     "timezone": "IST",
+     "regularMarketPrice": 1335.4,
+     "chartPreviousClose": 1324.4,
+     "previousClose": 1324.4,
+     "longName": "Reliance Industries Limited"
+    }
+   }
+  ],
+  "error": null
+ }
+}

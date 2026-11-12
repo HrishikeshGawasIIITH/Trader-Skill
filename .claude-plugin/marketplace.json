@@ -1,0 +1,17 @@
+{
+  "name": "trader-skill",
+  "description": "Trader-Skill: trading skills for Indian markets with Angel One SmartAPI.",
+  "owner": {
+    "name": "HrishikeshGawasIIITH",
+    "url": "https://github.com/HrishikeshGawasIIITH"
+  },
+  "plugins": [
+    {
+      "name": "trader-skill",
+      "description": "Skills for Indian markets: scanner, news, entry and exit plans, screeners, market health, risk checks and an Angel One order executor. Paper mode by default. No order without your yes.",
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/HrishikeshGawasIIITH/Trader-Skill"
+    }
+  ]
+}

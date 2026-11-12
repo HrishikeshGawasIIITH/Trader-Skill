@@ -1,0 +1,13 @@
+# Your trading state, prices, caches and logs. Never commit them.
+trader/
+# Secrets. The real keys live outside the repo in ~/.trader/angel.env.
+.env
+.env.*
+*.env
+angel_session.json
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
