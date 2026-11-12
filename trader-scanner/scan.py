@@ -77,6 +77,10 @@ BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHT
 YAHOO_HOSTS = ("https://query2.finance.yahoo.com", "https://query1.finance.yahoo.com")
 NSE_URL = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
 NSE_FILE = "EQUITY_L.csv"
+INDEX = "^NSEI"
+INDEX_LABEL = "Nifty 50"
+FO_URL = "https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv"
+FO_CACHE = os.path.join("trader", "cache", "fo_mktlots.csv")
 SPARK_MAX = 20      # Yahoo's spark answers 400 above 20 symbols
 PAUSE = 0.3         # seconds between requests: be polite to free endpoints
 BACKOFF = 5.0       # seconds to wait before the one retry after a 429
@@ -609,8 +613,23 @@ def orb_hit(bars, n_range):
             return {"price": round(b["c"], 2), "at": clock_label(closes_at),
                     "bar_start": b["start"].strftime("%H:%M"), "bar_index": k,
                     "or_high": round(oh, 2), "or_low": round(ol, 2),
-                    "pct_over": round((b["c"] / oh - 1) * 100, 2), "_t": closes_at}
+                    "pct_over": round((b["c"] / oh - 1) * 100, 2), "_t": closes_at,
+                    "last": round(bars[-1]["c"], 2), "still_above": bars[-1]["c"] > oh,
+                    "now_over_pct": round((bars[-1]["c"] / oh - 1) * 100, 2)}
     return None
+
+
+def prev_close(series, day):
+    """The previous session's close: the last bar before `day` in the series, else Yahoo's
+    chartPreviousClose (right for a 1-day range). None when neither is there."""
+    best = None
+    for ts, c in zip(series.get("t") or [], series.get("c") or []):
+        if c is not None and ts_to_local(ts).date() < day:
+            best = float(c)
+    if best is None:
+        m = series.get("meta") or {}
+        best = m.get("chartPreviousClose") or m.get("previousClose")
+    return float(best) if best else None
 
 
 def orb_window(now_utc, at, or_minutes, until, explicit_day=None):
@@ -653,7 +672,7 @@ def orb_window(now_utc, at, or_minutes, until, explicit_day=None):
 
 
 def scan_orb(stage1, symbols, day, cutoff, or_minutes, min_price=0.0, min_volume=0, confirm=None,
-             max_confirm=None):
+             max_confirm=None, index_pct=None):
     """stage1 = {SYM: series} with closes (spark or v8). confirm(sym) -> series with highs/lows
     (None = use the stage-1 series). With confirm and max_confirm, only the max_confirm most
     traded candidates (price x volume so far) are confirmed; the rest are counted as unconfirmed.
@@ -698,6 +717,12 @@ def scan_orb(stage1, symbols, day, cutoff, or_minutes, min_price=0.0, min_volume
         counts["confirmed"] += 1
         h = orb_hit(full, n_range)
         if h:
+            pc = prev_close((s2 if confirm is not None else stage1.get(sym)) or {}, day)
+            h["prev_close"] = round(pc, 2) if pc else None
+            h["day_pct"] = round((h["last"] / pc - 1) * 100, 2) if pc else None
+            h["rs_vs_index"] = (round(h["day_pct"] - index_pct, 2)
+                                if h["day_pct"] is not None and index_pct is not None else None)
+            h["turnover"] = round(full[-1]["c"] * sum(b["v"] for b in full))
             hits.append(dict({"symbol": sym, "setups": ["orb"]}, **h))
     hits.sort(key=lambda x: (x["_t"], x["symbol"]))
     for h in hits:
@@ -753,11 +778,46 @@ def read_symbols(a, offline_syms=None):
     for s in syms:
         if s not in out:
             out.append(s)
+    if getattr(a, "fno", False):
+        fo = fno_symbols()
+        out = [s for s in out if s in fo]
     if a.limit:
         out = out[:a.limit]
     if not out:
         raise ScanError("no symbols to scan")
     return out
+
+
+def parse_fno(text):
+    """NSE fo_mktlots.csv -> the set of stock symbols with F&O (index rows dropped)."""
+    out = set()
+    for row in csv.reader(io.StringIO(text)):
+        if len(row) < 2:
+            continue
+        sym = row[1].strip().upper()
+        if sym and sym != "SYMBOL" and not sym.startswith("NIFTY") and sym not in (
+                "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "SENSEX", "BANKEX"):
+            out.add(sym)
+    return out
+
+
+def fno_symbols(path=FO_CACHE):
+    """F&O stock symbols from NSE, cached for a day in trader/cache/fo_mktlots.csv."""
+    fresh = os.path.exists(path) and time.time() - os.path.getmtime(path) < 86400
+    if not fresh:
+        try:
+            text = http_get(FO_URL, timeout=60)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+        except (urllib.error.URLError, OSError) as e:
+            if not os.path.exists(path):
+                raise ScanError("could not download the NSE F&O list (%s): %s" % (FO_URL, getattr(e, "reason", e)))
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        fo = parse_fno(fh.read())
+    if not fo:
+        raise ScanError("the NSE F&O list %s has no symbols" % path)
+    return fo
 
 
 def symbols_from_file(path):
@@ -963,9 +1023,30 @@ def cmd_orb(a):
             done.append(sym)
             if len(done) % 50 == 0:
                 progress(a, "  stage 2: %d v8 charts so far" % len(done))
-            return parse_chart(yahoo_get(chart_path(sym, rng, "%dm" % BAR_MIN)), sym)
+            # 5 days, so the previous close comes from real bars (Yahoo meta can skip a day).
+            return parse_chart(yahoo_get(chart_path(sym, "5d", "%dm" % BAR_MIN)), sym)
+    index_pct = None
+    if not a.offline:
+        try:
+            ix = parse_chart(yahoo_get(chart_path(INDEX, "5d", "%dm" % BAR_MIN)), INDEX)
+            ib = session_bars(ix, day, cutoff)
+            ipc = prev_close(ix, day)
+            if ib and ipc:
+                index_pct = round((ib[-1]["c"] / ipc - 1) * 100, 2)
+        except Exception:  # noqa: BLE001 - the index is context; the scan goes on without it
+            index_pct = None
     hits, counts, failed2 = scan_orb(data, symbols, day, cutoff, a.or_minutes, a.min_price, a.min_volume, confirm,
-                                     a.max_confirm)
+                                     a.max_confirm, index_pct)
+    all_hits = len(hits)
+    if a.still_above:
+        hits = [h for h in hits if h["still_above"]]
+    if a.max_move is not None:
+        hits = [h for h in hits if h["day_pct"] is None or h["day_pct"] <= a.max_move]
+    if a.rank == "strength":
+        hits.sort(key=lambda h: (-(h["rs_vs_index"] if h["rs_vs_index"] is not None else (h["day_pct"] or 0)),
+                                 -h["turnover"]))
+    counts["hits_before_filters"] = all_hits
+    counts["hits"] = len(hits)
     failed = dict(failed or {})
     failed.update(failed2)
     nfailed = len([s for s in symbols if s in failed])
@@ -974,7 +1055,9 @@ def cmd_orb(a):
            "as_of": as_of, "universe": len(symbols), "scanned": counts["scanned"], "failed": nfailed,
            "unconfirmed": counts["unconfirmed"], "source": "yahoo", "or_minutes": a.or_minutes,
            "interval": "%dm" % BAR_MIN,
-           "filters": {"min_price": a.min_price, "min_volume": a.min_volume}, "note": NOTE, "hits": hits}
+           "filters": {"min_price": a.min_price, "min_volume": a.min_volume, "fno": a.fno,
+                       "still_above": a.still_above, "max_move": a.max_move},
+           "rank": a.rank, "index": INDEX, "index_pct": index_pct, "note": NOTE, "hits": hits}
     if a.offline:
         doc["offline"] = os.path.basename(a.offline.rstrip("/"))
     if not a.no_write:
@@ -994,13 +1077,27 @@ def cmd_orb(a):
     if counts["unconfirmed"]:
         print("PARTIAL: %s more candidates were not checked (only the %s most traded are; --max-confirm 0 "
               "checks all)." % ("{:,}".format(counts["unconfirmed"]), "{:,}".format(a.max_confirm)))
+    if index_pct is not None:
+        print("%s: %+.2f%% on the day at %s." % (INDEX_LABEL, index_pct, clock_label(cutoff)))
+    checked = counts["confirmed"] if counts["unconfirmed"] else counts["scanned"]
+    if checked and all_hits > 0.5 * checked:
+        print("NOTE: %d of %s checked charts broke out. The rule is not selective today. "
+              "Use --still-above, --max-move and --rank strength." % (all_hits, "{:,}".format(checked)))
+    if all_hits != len(hits):
+        print("%d breakouts; %d left after the filters (still above the range: %s, max day move: %s)."
+              % (all_hits, len(hits), "on" if a.still_above else "off",
+                 "%g%%" % a.max_move if a.max_move is not None else "off"))
     if hits:
-        print("%d of %s charts closed above their opening-range high by %s:"
+        print("%d of %s charts closed above their opening-range high by %s (%s first):"
               % (len(hits), ("the %s checked" % "{:,}".format(counts["confirmed"])) if counts["unconfirmed"]
-                 else "{:,}".format(counts["scanned"]), clock_label(cutoff)))
+                 else "{:,}".format(counts["scanned"]), clock_label(cutoff),
+                 "strongest" if a.rank == "strength" else "earliest"))
         for h in hits[:a.show]:
-            print("  %8s  %-6s %10s  range %s to %s  %+.2f%% over" % (
-                h["at"], h["symbol"], money(h["price"]), _p(h["or_low"]), _p(h["or_high"]), h["pct_over"]))
+            print("  %8s  %-6s %10s  range %s to %s  %+.2f%% over  now %s%s  day %s  vs index %s" % (
+                h["at"], h["symbol"], money(h["price"]), _p(h["or_low"]), _p(h["or_high"]), h["pct_over"],
+                money(h["last"]), "" if h["still_above"] else " (back under)",
+                "n/a" if h["day_pct"] is None else "%+.2f%%" % h["day_pct"],
+                "n/a" if h["rs_vs_index"] is None else "%+.2f" % h["rs_vs_index"]))
         if len(hits) > a.show:
             print("  ... and %d more in the watchlist (--show N for more)." % (len(hits) - a.show))
     else:
@@ -1045,6 +1142,7 @@ def main(argv=None):
         p.add_argument("--show", type=int, default=50, help="hits to print (all are written)")
         p.add_argument("--quiet", action="store_true")
         p.add_argument("--json", action="store_true")
+        p.add_argument("--fno", action="store_true", help="only stocks with F&O (NSE fo_mktlots.csv)")
 
     p = sub.add_parser("daily", help="pre-market setups from daily closes")
     common(p, 0)
@@ -1058,6 +1156,11 @@ def main(argv=None):
                    help="v8 charts to fetch in stage 2, most traded first (%d; 0 = all)" % MAX_CONFIRM)
     p.add_argument("--at", help="cut the clock at this %s time, HH:MM" % TZ_LABEL)
     p.add_argument("--until", help="no new entries after HH:MM (default: config no_entries_after, 14:45)")
+    p.add_argument("--still-above", action="store_true", help="drop hits that closed back under the range high")
+    p.add_argument("--max-move", type=float, default=None, metavar="PCT",
+                   help="drop hits already up more than PCT%% on the day (avoid buying late)")
+    p.add_argument("--rank", choices=("time", "strength"), default="time",
+                   help="time: earliest breakout first; strength: best day %% against the index first")
     a = ap.parse_args(argv)
     if not a.cmd:
         ap.print_help()
@@ -1073,4 +1176,7 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    import sys as _sys
+    if hasattr(_sys.stdout, "reconfigure"):
+        _sys.stdout.reconfigure(errors="replace")
     sys.exit(main())

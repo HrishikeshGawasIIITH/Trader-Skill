@@ -859,4 +859,7 @@ def _get_candidates_mode_b(args) -> tuple[list[dict], Optional[str]]:
 
 
 if __name__ == "__main__":
+    import sys as _sys
+    if hasattr(_sys.stdout, "reconfigure"):
+        _sys.stdout.reconfigure(errors="replace")
     main()

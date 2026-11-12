@@ -135,16 +135,16 @@ class FMPClient:
                 return None
         return None
 
-    def _yahoo_chart(self, symbol, rng="2y"):
+    def _yahoo_chart(self, symbol, rng="2y", interval="1d"):
         """Raw Yahoo chart result dict (first result) or None. Cached."""
         ysym = to_yahoo_symbol(symbol)
-        key = ("chart", ysym, rng)
+        key = ("chart", ysym, rng, interval)
         if key in self.cache:
             return self.cache[key]
         result = None
         for host in YAHOO_HOSTS:
             url = (f"https://{host}/v8/finance/chart/{urllib.parse.quote(ysym, safe='')}"
-                   f"?range={rng}&interval=1d")
+                   f"?range={rng}&interval={interval}")
             body = self._fetch(url, yahoo=True)
             if not body:
                 continue
@@ -243,9 +243,16 @@ class FMPClient:
         traded_day = (datetime.fromtimestamp(rmt, IST).date().isoformat()
                       if isinstance(rmt, (int, float)) else last["date"])
         if last["date"] == traded_day and len(bars) > 1:
-            prev = bars[1]["close"]
+            prev, prev_day = bars[1]["close"], bars[1]["date"]
         else:
-            prev = last["close"]
+            prev, prev_day = last["close"], last["date"]
+        # Yahoo sometimes drops a whole daily bar. Then the "previous close" is two
+        # sessions old. When weekdays are missing, read it from 5-minute bars.
+        gap = self._weekdays_between(prev_day, traded_day)
+        if gap > 0:
+            intraday = self._prev_close_intraday(symbol, traded_day)
+            if intraday is not None:
+                prev = intraday
         change = price - prev
         pct = (change / prev * 100.0) if prev else 0.0
         year = bars[:252]
@@ -267,6 +274,33 @@ class FMPClient:
             "marketCap": None,
             "exchange": "NSE",
         }
+
+    @staticmethod
+    def _weekdays_between(day_a, day_b):
+        """Weekdays strictly between two ISO dates (0 when either is missing)."""
+        try:
+            a, b = datetime.fromisoformat(day_a).date(), datetime.fromisoformat(day_b).date()
+        except (TypeError, ValueError):
+            return 0
+        n, d = 0, a + timedelta(days=1)
+        while d < b:
+            n += d.weekday() < 5
+            d += timedelta(days=1)
+        return n
+
+    def _prev_close_intraday(self, symbol, traded_day):
+        """Last 5-minute close before traded_day, or None."""
+        res = self._yahoo_chart(symbol, "5d", "5m")
+        try:
+            ts = res["timestamp"]
+            closes = res["indicators"]["quote"][0]["close"]
+        except (KeyError, IndexError, TypeError):
+            return None
+        best = None
+        for t, c in zip(ts, closes):
+            if c is not None and datetime.fromtimestamp(t, IST).date().isoformat() < traded_day:
+                best = float(c)
+        return best
 
     def get_quote(self, symbols):
         if isinstance(symbols, str):

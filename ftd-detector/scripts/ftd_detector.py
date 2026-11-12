@@ -288,4 +288,7 @@ def _serialize_index(idx_data: dict) -> dict:
 
 
 if __name__ == "__main__":
+    import sys as _sys
+    if hasattr(_sys.stdout, "reconfigure"):
+        _sys.stdout.reconfigure(errors="replace")
     main()

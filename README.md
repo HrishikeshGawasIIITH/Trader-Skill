@@ -34,7 +34,7 @@ news + stock analysis ───────────────────�
 
 | group | skill | what it does |
 | --- | --- | --- |
-| Order path | trader-scanner | Scans NSE stocks for gaps, volume and opening-range setups |
+| Order path | trader-scanner | Scans NSE stocks (or F&O stocks only) for daily and opening-range setups |
 | | trader-entry | Times an entry (opening-range breakout, level breaks) in IST |
 | | trader-exit | Sets the stop, the target and the flat-by time |
 | | trader-timemachine | Replays a setup over past sessions before you risk money |
@@ -59,8 +59,8 @@ news + stock analysis ───────────────────�
 | | market-top-detector | Signs of a market top (distribution, leadership, India VIX) |
 | | institutional-flow-tracker | FII/DII flows and bulk and block deals |
 | Analysis | technical-analyst | Chart analysis: trend, support, resistance, scenarios |
-| | india-stock-analysis | One report on a stock: price, technicals, filings |
-| | options-strategy-advisor | Option prices, Greeks and strategy payoffs |
+| | india-stock-analysis | One report on a stock: price, technicals, filings, promoter holding and pledge |
+| | options-strategy-advisor | Live NSE option chain, Greeks, payoffs and an option plan inside your loss limit |
 
 ## Install
 
@@ -117,6 +117,8 @@ Never paste a key into a chat. The agent never reads the secrets file.
 | Daily and intraday charts, indices, India VIX | Yahoo Finance (`.NS` symbols) |
 | Stock lists, index members, F&O lots, bulk and block deals | NSE archives |
 | Filings, results, board meetings, insider trades | NSE RSS feeds and NSE corporate announcements |
+| Option chains (bid, ask, IV, OI) | NSE option chain data (information only) |
+| Promoter holding and pledge | NSE shareholding pattern and pledge data |
 | Results calendar, FII/DII flows, holidays | NSE website data |
 | News | Google News (India), Economic Times, Moneycontrol, Mint, Business Standard, BusinessLine, NDTV Profit |
 | Regulator news | RBI and SEBI RSS feeds |

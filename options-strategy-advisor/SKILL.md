@@ -29,12 +29,38 @@ This skill explains and simulates options strategies with theoretical prices. It
 **Data sources (no keys):**
 - Spot and history: `scripts/india_client.py` (Yahoo)
 - Lot sizes: NSE F&O lot file
-- Implied volatility: user input from the broker option chain. If it is missing, use historical volatility.
+- Implied volatility: the live NSE chain (`option_chain.py`), or the broker option chain. If both are missing, use historical volatility.
 
 ## Prerequisites
 
 - Python 3.9 or newer, standard library only
 - Internet access for spot, history and lot sizes (optional if you type the inputs)
+
+## Live option chain and option trade plan
+
+`scripts/option_chain.py` reads the live NSE option chain (no keys). It also builds a trade plan that keeps the loss inside your limit.
+
+```bash
+# Strikes that fit: cost per lot, spread, open interest, delta
+python3 scripts/option_chain.py chain DLF --max-cost 15000 --max-spread 3 --min-oi 500 --min-delta 0.35 --max-delta 0.55
+python3 scripts/option_chain.py chain NIFTY --side put --expiry 25-Nov-2026
+
+# Plan one strike. The stop and the targets are levels on the STOCK (chart levels).
+python3 scripts/option_chain.py plan DLF --strike 760 --stop 748 --target1 772 --target2 784
+python3 scripts/option_chain.py plan DLF --strike 760 --stop 748 --target1 772 --target2 784 --write
+```
+
+`plan` rules:
+- The stop goes on the stock at a chart level: below the opening-range low, a support, or about 1 ATR away.
+  A stop on the premium alone sits inside normal noise.
+- The script estimates the option price at the stop and at each target with Black-Scholes and the chain IV.
+- It blocks the plan when the loss at the stop is over `max_loss_per_trade_inr` or the cost is over `max_order_inr`.
+- It blocks the plan when the stop is under 0.5 ATR from spot (`--min-stop-atr`).
+- It warns on a wide spread, under 3 days to expiry, and IV more than 10 points over the 30-day volatility.
+- If the plan is blocked, pick a cheaper strike (further out of the money) or a closer chart level. Never move the stop only to fit the limit.
+- `--write` writes one order to `trader/orders.json` in the trader-risk format. Confirm the symbol with `angel.py search`, then run trader-risk.
+
+The NSE data is for information. Confirm the premium in the broker's option chain before an order.
 
 ## Quick Start
 

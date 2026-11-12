@@ -152,7 +152,7 @@ a separate config (`--config`) for a long-term split.
 ## What it never does
 
 It never places, approves or schedules an order, never raises a limit on its
-own, never shrinks a stop to fit more shares, and never sizes options,
+own, never shrinks a stop to fit more shares, and never sizes options (options-strategy-advisor `option_chain.py plan` does that),
 margin or short positions.
 
 ## Safety

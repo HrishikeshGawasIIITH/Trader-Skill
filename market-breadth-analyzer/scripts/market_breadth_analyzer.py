@@ -374,4 +374,7 @@ def _compute_key_levels(rows, summary):
 
 
 if __name__ == "__main__":
+    import sys as _sys
+    if hasattr(_sys.stdout, "reconfigure"):
+        _sys.stdout.reconfigure(errors="replace")
     main()

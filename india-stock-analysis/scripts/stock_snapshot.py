@@ -32,6 +32,9 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 
 NSE_HOME = "https://www.nseindia.com/"
 ANNOUNCE_URL = "https://www.nseindia.com/api/corporate-announcements?index=equities&symbol={s}"
 ACTIONS_URL = "https://www.nseindia.com/api/corporates-corporateActions?index=equities&symbol={s}"
+HOLDING_URL = "https://www.nseindia.com/api/corporate-share-holdings-master?index=equities&symbol={s}"
+PLEDGE_URL = "https://www.nseindia.com/api/corporate-pledgedata?index=equities&symbol={s}"
+RESULT_WORDS = ("financial result", "outcome of board meeting")
 
 
 class NseSession:
@@ -112,10 +115,47 @@ def rsi(closes, n=14):
     return 100.0 if al == 0 else 100 - 100 / (1 + ag / al)
 
 
+def _pct(v):
+    try:
+        return round(float(str(v).strip()), 2)
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_holding(data, quarters=4):
+    """NSE shareholding master -> [{date, promoter_pct, public_pct}], newest first."""
+    rows = data if isinstance(data, list) else []
+    out = []
+    for r in rows[:quarters]:
+        if isinstance(r, dict):
+            out.append({"date": r.get("date"), "promoter_pct": _pct(r.get("pr_and_prgrp")),
+                        "public_pct": _pct(r.get("public_val"))})
+    return out
+
+
+def parse_pledge(data):
+    """NSE pledge data -> {as_of, promoter_pct, pledged_pct_of_promoter, pledged_pct_of_total} or None.
+    An empty answer means NSE has no pledge disclosure for the stock."""
+    rows = (data or {}).get("data") if isinstance(data, dict) else None
+    if not rows or not isinstance(rows[0], dict):
+        return None
+    r = rows[0]
+    return {"as_of": r.get("shp"), "promoter_pct": _pct(r.get("percPromoterHolding")),
+            "pledged_pct_of_promoter": _pct(r.get("percPromoterShares")),
+            "pledged_pct_of_total": _pct(r.get("percTotShares"))}
+
+
+def results_filings(announcements):
+    """The announcements that carry quarterly results (read the PDF for the figures)."""
+    return [a for a in announcements
+            if any(w in (a.get("category", "") + " " + a.get("text", "")).lower() for w in RESULT_WORDS)]
+
+
 def compute_technicals(bars_newest_first):
-    """Indicators from daily bars. Returns None when under 30 bars."""
+    """Indicators from daily bars. Returns None when under 15 bars.
+    A short history (a recent listing) gives the indicators it can; the rest are None."""
     bars = [b for b in reversed(bars_newest_first) if b.get("close")]
-    if len(bars) < 30:
+    if len(bars) < 15:
         return None
     c = [b["close"] for b in bars]
     h = [b["high"] for b in bars]
@@ -130,7 +170,7 @@ def compute_technicals(bars_newest_first):
     macd = [a - b for a, b in zip(ema12, ema26)]
     sig = _ema_series(macd, 9)
     sma20 = _sma(c, 20)
-    sd20 = math.sqrt(sum((x - sma20) ** 2 for x in c[-20:]) / 20)
+    sd20 = math.sqrt(sum((x - sma20) ** 2 for x in c[-20:]) / 20) if sma20 else None
     trs = [max(h[i] - lo[i], abs(h[i] - c[i - 1]), abs(lo[i] - c[i - 1])) for i in range(1, len(c))]
     atr = sum(trs[-14:]) / 14 if len(trs) >= 14 else None
     yr = bars[-252:]
@@ -149,14 +189,16 @@ def compute_technicals(bars_newest_first):
         "last": round(last, 2),
         "date": bars[-1]["date"],
         "returns_pct": {"1w": ret(5), "1m": ret(21), "3m": ret(63), "6m": ret(126), "12m": ret(252)},
-        "sma20": round(sma20, 2),
+        "history_days": len(bars),
+        "sma20": round(sma20, 2) if sma20 else None,
         "sma50": round(sma50, 2) if sma50 else None,
         "sma200": round(sma200, 2) if sma200 else None,
         "rsi14": round(rsi(c), 1) if rsi(c) is not None else None,
         "macd": round(macd[-1], 2),
         "macd_signal": round(sig[-1], 2),
         "macd_hist": round(macd[-1] - sig[-1], 2),
-        "bollinger": {"upper": round(sma20 + 2 * sd20, 2), "lower": round(sma20 - 2 * sd20, 2)},
+        "bollinger": ({"upper": round(sma20 + 2 * sd20, 2), "lower": round(sma20 - 2 * sd20, 2)}
+                      if sma20 else {"upper": None, "lower": None}),
         "atr14": round(atr, 2) if atr else None,
         "high_52w": round(hi52, 2),
         "low_52w": round(lo52, 2),
@@ -225,6 +267,11 @@ def build_pack(symbol, client, session, announcements=10):
     pack["upcoming_events"] = [e for e in cal if str(e.get("symbol", "")).upper() == sym][:3]
     pack["announcements"] = parse_announcements(session.get_json(ANNOUNCE_URL.format(s=urllib.parse.quote(sym))), announcements)
     pack["corporate_actions"] = parse_actions(session.get_json(ACTIONS_URL.format(s=urllib.parse.quote(sym))))
+    pack["shareholding"] = parse_holding(session.get_json(HOLDING_URL.format(s=urllib.parse.quote(sym))))
+    pledge_raw = session.get_json(PLEDGE_URL.format(s=urllib.parse.quote(sym)))
+    pack["pledge"] = parse_pledge(pledge_raw)
+    pack["pledge_checked"] = pledge_raw is not None
+    pack["results_filings"] = results_filings(pack["announcements"])
     return pack
 
 
@@ -242,6 +289,8 @@ def format_pack(p):
         lines.append("Not enough price history.")
     else:
         r = t["returns_pct"]
+        if t.get("history_days", 999) < 200:
+            lines.append(f"- Short history: {t['history_days']} trading days. Indicators that need more days show None.")
         lines += [
             f"- Trend: {t['trend']}; last Rs {t['last']:,.2f} on {t['date']}",
             f"- Returns: 1w {r['1w']}%, 1m {r['1m']}%, 3m {r['3m']}%, 6m {r['6m']}%, 12m {r['12m']}%",
@@ -256,6 +305,24 @@ def format_pack(p):
     lines += [f"- {e.get('date')}: {e.get('purpose')}" for e in p["upcoming_events"]] or ["- None listed"]
     lines += ["", "## Recent announcements"]
     lines += [f"- {a['date']} [{a['category']}] {a['text'][:160]}" for a in p["announcements"]] or ["- None fetched"]
+    lines += ["", "## Promoter holding and pledge (NSE)"]
+    sh = p.get("shareholding") or []
+    if sh:
+        lines.append("- Promoter holding: " + ", ".join(
+            "%s %s%%" % (r["date"], r["promoter_pct"]) for r in sh))
+    else:
+        lines.append("- Promoter holding: not fetched")
+    pl = p.get("pledge")
+    if pl:
+        lines.append("- Pledge (%s): %s%% of promoter shares, %s%% of all shares" % (
+            pl["as_of"], pl["pledged_pct_of_promoter"], pl["pledged_pct_of_total"]))
+    elif p.get("pledge_checked"):
+        lines.append("- Pledge: no pledge disclosure at NSE")
+    else:
+        lines.append("- Pledge: not fetched")
+    lines += ["", "## Results filings (open the PDF for revenue, profit and margins)"]
+    lines += [f"- {a['date']} {a['text'][:120]} {a.get('file') or ''}".rstrip()
+              for a in p.get("results_filings") or []] or ["- None in the recent announcements"]
     lines += ["", "## Corporate actions"]
     lines += [f"- ex-date {a['ex_date']}: {a['subject']}" for a in p["corporate_actions"]] or ["- None fetched"]
     lines += ["", "Fundamentals are not scraped. Use results filings above or figures the user supplies.",
@@ -280,4 +347,7 @@ def main(argv=None, client=None, session=None):
 
 
 if __name__ == "__main__":
+    import sys as _sys
+    if hasattr(_sys.stdout, "reconfigure"):
+        _sys.stdout.reconfigure(errors="replace")
     raise SystemExit(main())

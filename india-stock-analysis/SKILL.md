@@ -31,9 +31,16 @@ It reads, with no keys:
 4. **NSE corporate actions:** dividends, splits, bonus, rights, with ex-dates
 5. **Results dates:** NSE board meeting calendar
 6. **Industry:** from the NSE index lists
+7. **Promoter holding:** the last 4 quarters, from the NSE shareholding pattern
+8. **Promoter pledge:** pledged shares as a % of promoter shares and of all shares, from NSE pledge data
+9. **Results filings:** the links to the latest results PDFs
 
 **Fundamentals are not scraped.** Revenue, profit, margins and debt are not in the pack. Use these routes:
-- Read the financial results filing linked in the announcements (the `file` URL).
+- For a fundamental or comprehensive report, open the latest PDF under "Results filings" and read it.
+  Write down revenue, EBITDA, net profit and EPS for the quarter and the same quarter last year.
+- Compute P/E from the price and the last 4 quarters of EPS. Say which quarters you used.
+- A falling promoter holding or a pledge over 10% of promoter shares is a red flag. Report it.
+- For an intraday trade, read at least the results headline and the date. A results day changes the risk.
 - Ask the user to paste key figures from the exchange filing or their own data source.
 - State plainly which numbers are missing. Never invent them.
 

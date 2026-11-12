@@ -1,7 +1,7 @@
 {
   "name": "trader-skill",
   "description": "Skills for trading Indian markets (NSE, BSE, NFO) with an Angel One account: scanner, news, entry and exit plans, screeners, market health, risk checks and an order executor. Paper mode by default. No order without your yes.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "HrishikeshGawasIIITH",
     "url": "https://github.com/HrishikeshGawasIIITH"
@@ -9,6 +9,15 @@
   "homepage": "https://github.com/HrishikeshGawasIIITH/Trader-Skill",
   "repository": "https://github.com/HrishikeshGawasIIITH/Trader-Skill",
   "license": "MIT",
-  "keywords": ["india", "nse", "bse", "angel-one", "smartapi", "day-trading", "fno", "paper-trading"],
+  "keywords": [
+    "india",
+    "nse",
+    "bse",
+    "angel-one",
+    "smartapi",
+    "day-trading",
+    "fno",
+    "paper-trading"
+  ],
   "skills": "./"
 }

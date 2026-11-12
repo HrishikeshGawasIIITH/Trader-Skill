@@ -486,6 +486,9 @@ def detect_follow_through_day(index_history: list[dict], composite_score: float)
 
 # Testing
 if __name__ == "__main__":
+    import sys as _sys
+    if hasattr(_sys.stdout, "reconfigure"):
+        _sys.stdout.reconfigure(errors="replace")
     print("Testing Market Top Scorer...\n")
 
     # Test 1: Moderate risk scenario (calibration target: ~50)

@@ -33,6 +33,7 @@ python3 "${CLAUDE_SKILL_DIR}/scan.py" daily --symbols TCS,RELIANCE,M&M  # or --w
 python3 "${CLAUDE_SKILL_DIR}/scan.py" orb                               # after 9:35 AM IST -> trader/watchlist.json
 python3 "${CLAUDE_SKILL_DIR}/scan.py" orb --at 10:15                    # cut the clock at 10:15 AM IST
 python3 "${CLAUDE_SKILL_DIR}/scan.py" orb --watchlist trader/watchlist.json --json
+python3 "${CLAUDE_SKILL_DIR}/scan.py" orb --fno --still-above --max-move 4 --rank strength   # for option trades
 ```
 
 Flags: `--min-price 50`, `--min-turnover` (daily only, default Rs 10 crore =
@@ -86,6 +87,18 @@ A closing-high breakout fires more often than an intraday-high one. Hits are
 listed most traded first (price times volume).
 
 ## The opening-range breakout scan (during the session)
+
+Use these flags to make the scan selective:
+
+- `--fno` scans only stocks with F&O, from NSE `fo_mktlots.csv` (cached for a day). Use it before an option trade.
+- `--still-above` drops hits that closed back under the range high.
+- `--max-move 4` drops hits already up more than 4% on the day. A late entry after a big move often fails.
+- `--rank strength` sorts hits by the day move against Nifty 50, then by turnover. The default sorts by time.
+
+Each hit has `last`, `still_above`, `day_pct`, `prev_close`, `rs_vs_index` and `turnover`.
+The previous close comes from 5-day 5-minute bars, because Yahoo can skip a daily bar.
+When more than half of the checked charts break out, the scan prints a NOTE. The rule is not selective that day.
+Run `orb` between 09:35 and 10:15. A later run lists breakouts that are hours old.
 
 The opening range is the first `--or-minutes` (15) of the session: the 9:15,
 9:20 and 9:25 five-minute bars. A hit is the first completed 5-minute bar

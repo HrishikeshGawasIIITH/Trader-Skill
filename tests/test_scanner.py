@@ -10,6 +10,9 @@ from contextlib import redirect_stdout, redirect_stderr
 
 from _load import load, FIX
 
+# The hit fields from before the day %, still-above and index columns.
+BASE = ('symbol', 'setups', 'price', 'at', 'bar_start', 'bar_index', 'or_high', 'or_low', 'pct_over')
+
 scan = load("trader-scanner", "scan", us=True)
 scan_in = load("trader-scanner", "scan")
 
@@ -288,7 +291,7 @@ class Orb(unittest.TestCase):
         self.assertEqual(self.errors, {"SQ": "no data for SQ: No data found, symbol may be delisted"})
         self.assertEqual(counts["unusable"], 2)            # WBD (no bars), PARA (missing bars)
         tsla = [h for h in hits if h["symbol"] == "TSLA"][0]
-        self.assertEqual(tsla, {"symbol": "TSLA", "setups": ["orb"], "price": 364.18, "at": "10:15 AM",
+        self.assertEqual({k: tsla[k] for k in BASE}, {"symbol": "TSLA", "setups": ["orb"], "price": 364.18, "at": "10:15 AM",
                                 "bar_start": "10:10", "bar_index": 8, "or_high": 362.18, "or_low": 354.47,
                                 "pct_over": 0.55})
         self.assertEqual(hits[0]["symbol"], "AMC")         # sorted by time, then symbol
@@ -417,7 +420,8 @@ class LiveFiveMinute(unittest.TestCase):
         day, cut = scan.orb_window(self.now, None, 15, datetime.time(15, 30))
         hits, counts, failed = scan.scan_orb(self.spark, ["TSLA", "AMC"], day, cut, 15, 5, 0, lambda s: self.v8)
         # range 9:30 to 9:45: high 370.49 (the 9:30 bar), low 363.64; the 9:55 bar closed 370.585
-        self.assertEqual(hits, [{"symbol": "TSLA", "setups": ["orb"], "price": 370.58, "at": "10:00 AM",
+        self.assertTrue(hits[0]["still_above"] in (True, False) and "day_pct" in hits[0])
+        self.assertEqual([{k: h[k] for k in BASE} for h in hits], [{"symbol": "TSLA", "setups": ["orb"], "price": 370.58, "at": "10:00 AM",
                                  "bar_start": "09:55", "bar_index": 5, "or_high": 370.49, "or_low": 363.64,
                                  "pct_over": 0.03}])
         self.assertEqual(counts["illiquid"], 1)            # AMC under the $5 floor
@@ -492,7 +496,8 @@ class Cli(unittest.TestCase):
                           "as_of": "2026-10-19 10:15 New York", "universe": 234, "scanned": 231, "source": "yahoo"})
         self.assertEqual(len(doc["hits"]), 42)
         self.assertIn({"symbol": "TSLA", "setups": ["orb"], "price": 364.18, "at": "10:15 AM", "bar_start": "10:10",
-                       "bar_index": 8, "or_high": 362.18, "or_low": 354.47, "pct_over": 0.55}, doc["hits"])
+                       "bar_index": 8, "or_high": 362.18, "or_low": 354.47, "pct_over": 0.55},
+                      [{k: h[k] for k in BASE} for h in doc["hits"]])
 
         # the hits read back as a watchlist, with --at instead of --now
         code, text, _ = run(["orb", "--offline", WALL, "--at", "10:15", "--watchlist", self.wl, "--min-price", "0",
@@ -532,9 +537,10 @@ class Cli(unittest.TestCase):
         self.assertIn("231 usable; 95 candidates, 10 confirmed", text)
         self.assertIn("PARTIAL: 85 more candidates were not checked", text)
         self.assertIn("5 of the 10 checked charts closed above their opening-range high by 10:15 AM", text)
-        self.assertEqual(sum(1 for c in calls if c.startswith("/v8/")), 10)
+        self.assertEqual(sum(1 for c in calls if c.startswith("/v8/")), 11)   # 10 stocks + the index
         self.assertEqual(sum(1 for c in calls if c.startswith("/v7/")), 12)   # 234 symbols, 20 a request
-        self.assertTrue(all("range=1d&interval=5m" in c for c in calls))
+        self.assertTrue(all("range=1d&interval=5m" in c for c in calls if c.startswith("/v7/")))
+        self.assertTrue(all("range=5d&interval=5m" in c for c in calls if c.startswith("/v8/")))
 
     def test_plain_messages_and_exit_codes(self):
         code, _, err = run(["orb", "--offline", WALL, "--now", "2026-10-17 10:15", "--out", self.wl])
